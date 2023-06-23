@@ -2,6 +2,7 @@ body {
     background-color: #010909;
     color:#e7f0f0;
     font-family:"Times New Roman";
+    overflow-wrap: break-word;
 }
 button{
     background-color:#396664;
