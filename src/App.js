@@ -45,7 +45,7 @@ function App() {
 
   return (
     <>
-        <img src="https://www.texttechnologylab.org/wp-content/uploads/2019/06/a-24.png" alt="TextAnnotator Logo" width="128" height="128"/>
+        <img src="https://www.texttechnologylab.org/wp-content/uploads/2019/06/a-24.png" alt="TextAnnotator Logo" width="128" height="128"/><br /><br />
         <button onClick={logintest}>Login Test</button><br /><br />
     </>
   )
