@@ -5,9 +5,12 @@ import './App.css';
 var websocket = new WebSocket("ws://textannotator.texttechnologylab.org/uima");
 var msg_sent;
 var currview;
+var currmarkcolor="#396664";
 var currtype;
 var text="";
+var btndict={};
 var oritext="";
+const colors=["#776d6a","#81436c","#448182","#7d6c42","#f26b6b","#f26baf","#bc6bf2","#6460d6","#ea0b60","#191918","#43774c"];
 function App() {
   document.addEventListener("keyup",getSelect);
   function getSelect(event){
@@ -36,32 +39,21 @@ function App() {
               msg_sent="view";
               currview=viewts;
       }
-      function seltoel(toel2,data){
-               currtype=toel2;
-               text=oritext;
-               var tkey=data.data.toolElements;
-               console.log(tkey);
-               for(var te in tkey){
-                    //:/
-                    if(te.split(".")[te.split(".").length-1]+" ("+Object.keys(data.data.toolElements[te]).length+")"==toel2){
-                        var count=0;
-                        var beginlist=[];
-                        var endlist=[];
-                        for(var te2 in tkey[te]){
-                            beginlist.push(tkey[te][te2].features.begin);
-                            endlist.push(tkey[te][te2].features.end);
-                        }
-                        beginlist.sort(function(a, b) {return a - b;});
-                        endlist.sort(function(a, b) {return a - b;});
-                        for(var bg in beginlist){
-                           text=text.substring(0,beginlist[count]+44*count)+"<mark style={{background:\"#00ced1\"}}>"+text.substring(beginlist[count]+44*count,endlist[count]+44*count)+"</mark>"+text.substring(endlist[count]+44*count);
-                           console.log(count+" "+beginlist[count]+" "+endlist[count]);
-                           count++;
-                        }
-                        break;
-                    }
-               }
-               document.getElementById("Text").innerHTML=text;
+      function seltoel(toel2,toccol,data){
+            console.log(toel2);
+            currtype=toel2;
+            currmarkcolor=toccol;
+            console.log(data.data.toolElements[toel2]);
+            for(var te in data.data.toolElements[toel2]){
+                var selbutton=btndict[[data.data.toolElements[toel2][te].features.begin,data.data.toolElements[toel2][te].features.end]];
+                console.log(selbutton);
+                if(selbutton!=undefined){
+                    selbutton.style.backgroundColor=currmarkcolor;
+                }
+            }
+      }
+      function newannotate(button){
+            button.style.backgroundColor=currmarkcolor;
       }
       websocket.onopen = function () {
           document.getElementById("Text").innerHTML="";
@@ -69,7 +61,8 @@ function App() {
           document.getElementById("slt").innerHTML="";
           console.log("Verbindung wurde erfolgreich aufgebaut");
           var md5=require("md5");
-          axios.post("https://authority.hucompute.org/login",{username:"s5398116",password:md5("P(qMS!5e")},{headers: {"Content-Type": "application/x-www-form-urlencoded"}}).
+          console.log(document.getElementById("username").value)
+          axios.post("https://authority.hucompute.org/login",{username:document.getElementById("username").value,password:md5(document.getElementById("pass").value)},{headers: {"Content-Type": "application/x-www-form-urlencoded"}}).
           then((response)=>{
               if(response.data.success){
                   console.log(response.data.result);
@@ -133,13 +126,41 @@ function App() {
                 const seltool=document.createElement("h2");
                 seltool.innerText="Select Tool Element";
                 document.getElementById("slt").appendChild(seltool);
+                //Text
+                var qtnlist=[];
+                for(var te2 in data.data.toolElements["org.texttechnologylab.annotation.type.QuickTreeNode"]){
+                    qtnlist.push([data.data.toolElements["org.texttechnologylab.annotation.type.QuickTreeNode"][te2].features.begin,data.data.toolElements["org.texttechnologylab.annotation.type.QuickTreeNode"][te2].features.end,data.data.toolElements["org.texttechnologylab.annotation.type.QuickTreeNode"][te2]._addr]);
+                }
+                qtnlist.sort(function([a,b,c], [a1,b1,c1]) {return a - a1;});
+                var lastend=-1;
+                for(var bg in qtnlist){
+                   console.log(qtnlist[bg][0]);
+                   if(qtnlist[bg][0]>lastend){
+                       const qtnbutton = document.createElement("button");
+                       qtnbutton.innerText=text.substring(qtnlist[bg][0],qtnlist[bg][1]);
+                       qtnbutton.bid=qtnlist[bg][2];
+                       console.log(qtnbutton.bid);
+                       lastend=qtnlist[bg][1];
+                       qtnbutton.addEventListener('click', () => {newannotate(qtnbutton)})
+                       btndict[[qtnlist[bg][0],qtnlist[bg][1]]]=qtnbutton;
+                       document.getElementById("Text").appendChild(qtnbutton);
+                   }
+                   else{
+                        console.log("nein!")
+                   }
+                }
+                //Tool Element Liste
+                console.log(colors.length+"/49")
                 for(var toel in data.data.toolElements){
-                    console.log(data.data.toolElements[toel]+" "+toel)
+                    console.log(toel);
                     const tbutton = document.createElement("button");
                     tbutton.innerText=toel.split(".")[toel.split(".").length-1]+" ("+Object.keys(data.data.toolElements[toel]).length+")";
-                    tbutton.addEventListener('click', () => {seltoel(tbutton.innerText,data)})
+                    tbutton.style.backgroundColor=colors[count%colors.length];
+                    tbutton.buttoel=toel;
+                    tbutton.addEventListener('click', () => {seltoel(tbutton.buttoel,tbutton.style.backgroundColor,data)})
                     document.getElementById("slt").appendChild(tbutton);
                     count+=1;
+
                 }
             }
       }
@@ -148,6 +169,8 @@ function App() {
   return (
     <>
         <img src="https://www.texttechnologylab.org/wp-content/uploads/2019/06/a-24.png" alt="TextAnnotator Logo" width="128" height="128"/><br /><br />
+        <label>Username: <input id="username"></input></label><br /><br />
+        <label>Passwort: <input id="pass"></input></label><br /><br />
         <button onClick={logintest}>Log In</button><br /><br />
         <h2 id="slv"></h2>
         <h2 id="slt"></h2>
