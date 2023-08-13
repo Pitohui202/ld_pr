@@ -1,17 +1,20 @@
 body {
     background-color: #010909;
     color:#e7f0f0;
-    font-family:"Times New Roman";
+    font-family:"Roboto";
     overflow-wrap: break-word;
 }
 button{
+    variant:"contained";
     background-color:#396664;
     color:#e7f0f0;
+    font-family:"Roboto";
     border-color:#396664
 }
 input{
       background-color:#396664;
       color:#e7f0f0;
+      font-family:"Roboto";
       border-color:#396664
 }
 #filedrop {
@@ -20,4 +23,14 @@ input{
     border-color:#396664;
     width: 200px;
     height: 100px;
+}
+#Popover{
+    anchorOrigin:{
+        vertical: 'top';
+        horizontal: 'center';
+      }
+      transformOrigin:{
+        vertical: 'bottom';
+        horizontal: 'center';
+      }
 }

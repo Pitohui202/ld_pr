@@ -1,6 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import axios from 'axios';
+import lodash from 'lodash';
+import Button from '@mui/material/Button';
+import Popover from '@mui/material/Popover';
+import '@fontsource/roboto/300.css';
+import '@fontsource/roboto/400.css';
+import '@fontsource/roboto/500.css';
+import '@fontsource/roboto/700.css';
 import './App.css';
 var websocket = new WebSocket("ws://textannotator.texttechnologylab.org/uima");
 var msg_sent;
@@ -8,26 +15,29 @@ var currview;
 var currmarkcolor="#396664";
 var currtype;
 var text="";
+var editbutton;
 var btndict={};
 var oritext="";
+var a=0;
 const colors=["#776d6a","#81436c","#448182","#7d6c42","#f26b6b","#f26baf","#bc6bf2","#6460d6","#ea0b60","#191918","#43774c"];
 function App() {
-  document.addEventListener("keyup",getSelect);
-  function getSelect(event){
-    event.preventDefault();
-    console.log(event.key);
-    if(event.key=="a"){
-        console.log(window.getSelection());
-        var pos1=window.getSelection().baseOffset;
-        var pos2=window.getSelection().extentOffset;
-        if(pos2<pos1){
-            var ep=pos1;
-            pos1=pos2;
-            pos2=ep;
+    document.addEventListener("keyup",getSelect);
+      function getSelect(event){
+        console.log(a);
+        a+=1;
+        event.preventDefault();
+        if(a%2!=0){
+            console.log(event.key);
+            if(editbutton!=undefined){
+                if(event.key.length==1){
+                    editbutton.innerText+=event.key;
+                }
+                else if(event.key=="Backspace"){
+                    editbutton.innerText=editbutton.innerText.substring(0,editbutton.innerText.length-1);
+                }
+            }
         }
-        console.log("Neue Annotation | View:"+currview+" | Typ:"+currtype.split("(")[0]+" | Anfang:"+pos1+" | Ende:"+pos2+" | Text:"+window.getSelection().baseNode.data.substring(pos1,pos2))
-    }
-  }
+      }
   function logintest(){
       var ressession;
       var user;
@@ -54,6 +64,16 @@ function App() {
       }
       function newannotate(button){
             button.style.backgroundColor=currmarkcolor;
+      }
+      function editmenu(event,button){
+            event.preventDefault();
+            if(button!=editbutton){
+                editbutton=button;
+            }
+            else{
+                editbutton=undefined;
+            }
+            console.log("edit");
       }
       websocket.onopen = function () {
           document.getElementById("Text").innerHTML="";
@@ -133,20 +153,27 @@ function App() {
                 }
                 qtnlist.sort(function([a,b,c], [a1,b1,c1]) {return a - a1;});
                 var lastend=-1;
+                var currbutton;
                 for(var bg in qtnlist){
                    console.log(qtnlist[bg][0]);
+                   const qtnbutton = document.createElement("button");
+                   qtnbutton.innerText=text.substring(qtnlist[bg][0],qtnlist[bg][1]);
+                   qtnbutton.id=qtnlist[bg][2];
+                   qtnbutton.bid=qtnlist[bg][2];
+                   qtnbutton.hiddenbuttons=[];
+                   console.log(qtnbutton.bid);
+                   qtnbutton.addEventListener('click', () => {newannotate(qtnbutton)});
+                   qtnbutton.addEventListener('contextmenu',(e) => {editmenu(e,qtnbutton)});
+                   const popupmenu= document.createElement("Popover");
+                   popupmenu.id=qtnlist[bg][2];
+                   currbutton=qtnbutton;
+                   btndict[[qtnlist[bg][0],qtnlist[bg][1]]]=qtnbutton;
                    if(qtnlist[bg][0]>lastend){
-                       const qtnbutton = document.createElement("button");
-                       qtnbutton.innerText=text.substring(qtnlist[bg][0],qtnlist[bg][1]);
-                       qtnbutton.bid=qtnlist[bg][2];
-                       console.log(qtnbutton.bid);
-                       lastend=qtnlist[bg][1];
-                       qtnbutton.addEventListener('click', () => {newannotate(qtnbutton)})
-                       btndict[[qtnlist[bg][0],qtnlist[bg][1]]]=qtnbutton;
-                       document.getElementById("Text").appendChild(qtnbutton);
+                        document.getElementById("Text").appendChild(qtnbutton);
+                        lastend=qtnlist[bg][1];
                    }
                    else{
-                        console.log("nein!")
+                        qtnbutton.hiddenbuttons.push(currbutton);
                    }
                 }
                 //Tool Element Liste
@@ -157,7 +184,7 @@ function App() {
                     tbutton.innerText=toel.split(".")[toel.split(".").length-1]+" ("+Object.keys(data.data.toolElements[toel]).length+")";
                     tbutton.style.backgroundColor=colors[count%colors.length];
                     tbutton.buttoel=toel;
-                    tbutton.addEventListener('click', () => {seltoel(tbutton.buttoel,tbutton.style.backgroundColor,data)})
+                    tbutton.addEventListener('click', () => {seltoel(tbutton.buttoel,tbutton.style.backgroundColor,data)});
                     document.getElementById("slt").appendChild(tbutton);
                     count+=1;
 
