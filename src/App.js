@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import axios from 'axios';
 import lodash from 'lodash';
 import Button from '@mui/material/Button';
-import Popover from '@mui/material/Popover';
+import Popper from '@mui/material/Popper';
 import '@fontsource/roboto/300.css';
 import '@fontsource/roboto/400.css';
 import '@fontsource/roboto/500.css';
@@ -14,30 +14,20 @@ var msg_sent;
 var currview;
 var currmarkcolor="#396664";
 var currtype;
+var currinput;
 var text="";
 var editbutton;
 var btndict={};
+var popover;
 var oritext="";
 var a=0;
 const colors=["#776d6a","#81436c","#448182","#7d6c42","#f26b6b","#f26baf","#bc6bf2","#6460d6","#ea0b60","#191918","#43774c"];
 function App() {
-    document.addEventListener("keyup",getSelect);
-      function getSelect(event){
-        console.log(a);
-        a+=1;
-        event.preventDefault();
-        if(a%2!=0){
-            console.log(event.key);
-            if(editbutton!=undefined){
-                if(event.key.length==1){
-                    editbutton.innerText+=event.key;
-                }
-                else if(event.key=="Backspace"){
-                    editbutton.innerText=editbutton.innerText.substring(0,editbutton.innerText.length-1);
-                }
-            }
-        }
-      }
+    const [anchorEl, setAnchorEl] = React.useState(null);
+    const status=Boolean(anchorEl);
+  function handleClose(){
+        setAnchorEl(null);
+  }
   function logintest(){
       var ressession;
       var user;
@@ -65,13 +55,49 @@ function App() {
       function newannotate(button){
             button.style.backgroundColor=currmarkcolor;
       }
+      function split(event,button,input){
+        if(event.key=="Control"){
+            console.log(input.selectionStart);
+            var val=input.value;
+            input.value=val.substring(0,input.selectionStart);
+            const qtnsubbutton = document.createElement("button");
+            qtnsubbutton.innerText=val.substring(input.selectionStart);
+            qtnsubbutton.addEventListener('click', () => {newannotate(qtnsubbutton)});
+            qtnsubbutton.addEventListener('contextmenu',(e) => {editmenu(e,qtnsubbutton)});
+            button.appendChild(qtnsubbutton);
+        }
+      }
       function editmenu(event,button){
             event.preventDefault();
             if(button!=editbutton){
+                if(currinput!=undefined){
+                    editbutton.innerText=currinput.value;
+                }
+                var bit=button.innerText;
+                button.innerText="";
+                console.log("hi")
                 editbutton=button;
+                setAnchorEl(button);
+                const letext=document.createElement("button");
+                letext.innerText="<=";
+                button.appendChild(letext);
+                for(var hdb in button.hiddenbuttons){
+                    button.appendChild(hdb);
+                }
+                if(button.hiddenbuttons.length==0){
+                    currinput=document.createElement("input");
+                    currinput.value=bit;
+                    currinput.addEventListener("keyup",(event)=>split(event,button,currinput));
+                    button.appendChild(currinput);
+                }
+                const ritext=document.createElement("button");
+                ritext.innerText="=>";
+                button.appendChild(ritext);
+
             }
             else{
                 editbutton=undefined;
+                handleClose();
             }
             console.log("edit");
       }
@@ -94,6 +120,10 @@ function App() {
               else{
                   alert("Die Verbindung konnte nicht erfolgreich aufgebaut werden");
               }
+          })
+          axios.get("https://resources.hucompute.org/repositories",{extraParams: {documents: true,recursive: false},reader: {type: 'json',rootProperty: 'data'}}).
+          then((response)=>{
+            console.log(response.data.result);
           })
       };
       websocket.onmessage = function (messageEvent) {
@@ -154,6 +184,7 @@ function App() {
                 qtnlist.sort(function([a,b,c], [a1,b1,c1]) {return a - a1;});
                 var lastend=-1;
                 var currbutton;
+                a=0;
                 for(var bg in qtnlist){
                    console.log(qtnlist[bg][0]);
                    const qtnbutton = document.createElement("button");
@@ -164,8 +195,6 @@ function App() {
                    console.log(qtnbutton.bid);
                    qtnbutton.addEventListener('click', () => {newannotate(qtnbutton)});
                    qtnbutton.addEventListener('contextmenu',(e) => {editmenu(e,qtnbutton)});
-                   const popupmenu= document.createElement("Popover");
-                   popupmenu.id=qtnlist[bg][2];
                    currbutton=qtnbutton;
                    btndict[[qtnlist[bg][0],qtnlist[bg][1]]]=qtnbutton;
                    if(qtnlist[bg][0]>lastend){
@@ -173,7 +202,7 @@ function App() {
                         lastend=qtnlist[bg][1];
                    }
                    else{
-                        qtnbutton.hiddenbuttons.push(currbutton);
+                        currbutton.hiddenbuttons.push(qtnbutton);
                    }
                 }
                 //Tool Element Liste
@@ -201,7 +230,7 @@ function App() {
         <button onClick={logintest}>Log In</button><br /><br />
         <h2 id="slv"></h2>
         <h2 id="slt"></h2>
-        <h2><mark style={{background:"#00ced1"}}>Text</mark></h2>
+        <h2>Text</h2>
         <p id="Text"></p>
     </>
   )
