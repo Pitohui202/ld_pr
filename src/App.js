@@ -21,13 +21,13 @@ var btndict={};
 var popover;
 var oritext="";
 var a=0;
+var b=0;
 const colors=["#776d6a","#81436c","#448182","#7d6c42","#f26b6b","#f26baf","#bc6bf2","#6460d6","#ea0b60","#191918","#43774c"];
+const toplvlbuttons=[];
 function App() {
     const [anchorEl, setAnchorEl] = React.useState(null);
     const status=Boolean(anchorEl);
-  function handleClose(){
-        setAnchorEl(null);
-  }
+
   function logintest(){
       var ressession;
       var user;
@@ -38,6 +38,20 @@ function App() {
               console.log("Message sent:"+JSON.stringify({cmd:"open_view",data:{casId:"29084",view:viewts}}));
               msg_sent="view";
               currview=viewts;
+      }
+      function sendrepo(repoid){
+            var docurl="https://resources.hucompute.org/repositories?id="+repoid+"&session="+ressession.split(".")[0];
+            axios.get(docurl).
+            then((response)=>{
+                console.log(response);
+                document.getElementById("repob").innerHTML="";
+                for(var repo in response.data.data){
+                    var rbutton=document.createElement("button");
+                    rbutton.innerText=response.data.data[repo].id;
+                    rbutton.addEventListener('click', () => {sendrepo(rbutton.innerText)});
+                    document.getElementById("repob").appendChild(rbutton);
+                }
+            });
       }
       function seltoel(toel2,toccol,data){
             console.log(toel2);
@@ -56,6 +70,7 @@ function App() {
             button.style.backgroundColor=currmarkcolor;
       }
       function split(event,button,input){
+        console.log(event.key)
         if(event.key=="Control"){
             console.log(input.selectionStart);
             var val=input.value;
@@ -66,41 +81,83 @@ function App() {
             qtnsubbutton.addEventListener('contextmenu',(e) => {editmenu(e,qtnsubbutton)});
             button.appendChild(qtnsubbutton);
         }
+        if(event.key=="ArrowRight"){
+            if(b%2==0){
+                merge(button,input.value,1);
+            }
+            b++;
+        }
+        if(event.key=="ArrowLeft"){
+            if(b%2==0){
+                merge(button,input.value,-1);
+            }
+            b++;
+        }
       }
       function editmenu(event,button){
             event.preventDefault();
             if(button!=editbutton){
                 if(currinput!=undefined){
-                    editbutton.innerText=currinput.value;
+                    var eit=currinput.value;
+                    var a=0;
+                    for(var hdb in editbutton.hiddenbuttons){
+                        if(a%2==0){
+                            console.log(hdb);
+                            eit+=editbutton.hiddenbuttons[hdb].innerText;
+                        }
+                        a++;
+                    }
+                    editbutton.innerText=eit;
                 }
                 var bit=button.innerText;
                 button.innerText="";
                 console.log("hi")
                 editbutton=button;
                 setAnchorEl(button);
-                const letext=document.createElement("button");
-                letext.innerText="<=";
-                button.appendChild(letext);
-                for(var hdb in button.hiddenbuttons){
-                    button.appendChild(hdb);
-                }
-                if(button.hiddenbuttons.length==0){
-                    currinput=document.createElement("input");
-                    currinput.value=bit;
-                    currinput.addEventListener("keyup",(event)=>split(event,button,currinput));
-                    button.appendChild(currinput);
-                }
-                const ritext=document.createElement("button");
-                ritext.innerText="=>";
-                button.appendChild(ritext);
+                currinput=document.createElement("input");
+                currinput.value=bit;
+                currinput.addEventListener("keyup",(event)=>split(event,button,currinput));
+                button.appendChild(currinput);
 
             }
             else{
                 editbutton=undefined;
-                handleClose();
             }
             console.log("edit");
       }
+      function merge(button,inText,targetoffset){
+                console.log("merge"+button.tlbid)
+                if(targetoffset<0){
+                    var b2=document.createElement("button");
+                    console.log(button.tlbid);
+                    b2.innerText=toplvlbuttons[button.tlbid+targetoffset].innerText;
+                    b2.addEventListener('click', () => {newannotate(b2)});
+                    b2.addEventListener('contextmenu',(e) => {editmenu(e,b2)});
+                    button.appendChild(b2);
+                    button.hiddenbuttons.push(b2);
+                    toplvlbuttons[button.tlbid+targetoffset].remove();
+                    toplvlbuttons.splice(button.tlbid+targetoffset,1);
+                }
+                var str1=inText;
+                button.innerText="";
+                var b1=document.createElement("button");
+                b1.innerText=str1;
+                b1.addEventListener('click', () => {newannotate(b1)});
+                b1.addEventListener('contextmenu',(e) => {editmenu(e,b1)});
+                button.appendChild(b1);
+                if(targetoffset>0){
+                    var b2=document.createElement("button");
+                    console.log(button.tlbid);
+                    b2.innerText=toplvlbuttons[button.tlbid+targetoffset].innerText;
+                    b2.addEventListener('click', () => {newannotate(b2)});
+                    b2.addEventListener('contextmenu',(e) => {editmenu(e,b2)});
+                    button.appendChild(b2);
+                    button.hiddenbuttons.push(b2);
+                    toplvlbuttons[button.tlbid+targetoffset].remove();
+                    toplvlbuttons.splice(button.tlbid+targetoffset,1);
+                }
+                //console.log(toplvlbuttons);
+        }
       websocket.onopen = function () {
           document.getElementById("Text").innerHTML="";
           document.getElementById("slv").innerHTML="";
@@ -114,16 +171,25 @@ function App() {
                   console.log(response.data.result);
                   ressession=response.data.result.session;
                   user=response.data.result.user;
+                  var repourl="https://resources.hucompute.org/repositories?session="+ressession.split(".")[0];
+                    axios.get(repourl).
+                    then((response)=>{
+                      console.log(repourl);
+                      document.getElementById("repos").innerText="Dokumente-Auswahl";
+                      for(var repo in response.data.data){
+                        console.log(response);
+                        const rbutton = document.createElement("button");
+                        rbutton.innerText=response.data.data[repo].id;
+                        rbutton.addEventListener('click', () => {sendrepo(rbutton.innerText)});
+                        document.getElementById("repob").appendChild(rbutton);
+                      }
+                    })
                   websocket.send(JSON.stringify({cmd:"session",data:{session:ressession}}));
                   msg_sent="session";
               }
               else{
                   alert("Die Verbindung konnte nicht erfolgreich aufgebaut werden");
               }
-          })
-          axios.get("https://resources.hucompute.org/repositories",{extraParams: {documents: true,recursive: false},reader: {type: 'json',rootProperty: 'data'}}).
-          then((response)=>{
-            console.log(response.data.result);
           })
       };
       websocket.onmessage = function (messageEvent) {
@@ -196,10 +262,13 @@ function App() {
                    qtnbutton.addEventListener('click', () => {newannotate(qtnbutton)});
                    qtnbutton.addEventListener('contextmenu',(e) => {editmenu(e,qtnbutton)});
                    currbutton=qtnbutton;
+                   qtnbutton.tlbid=toplvlbuttons.length;
+                   console.log(qtnbutton.tlbid);
                    btndict[[qtnlist[bg][0],qtnlist[bg][1]]]=qtnbutton;
                    if(qtnlist[bg][0]>lastend){
                         document.getElementById("Text").appendChild(qtnbutton);
                         lastend=qtnlist[bg][1];
+                        toplvlbuttons.push(qtnbutton);
                    }
                    else{
                         currbutton.hiddenbuttons.push(qtnbutton);
@@ -228,6 +297,8 @@ function App() {
         <label>Username: <input id="username"></input></label><br /><br />
         <label>Passwort: <input id="pass"></input></label><br /><br />
         <button onClick={logintest}>Log In</button><br /><br />
+        <h2 id="repos"></h2>
+        <p id="repob"></p>
         <h2 id="slv"></h2>
         <h2 id="slt"></h2>
         <h2>Text</h2>
