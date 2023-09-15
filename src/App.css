@@ -2,36 +2,11 @@ body {
     background-color: #010909;
     color:#e7f0f0;
     font-family:"Roboto";
-    overflow-wrap: break-word;
 }
 button{
-    variant:"contained";
     background-color:#396664;
     color:#e7f0f0;
     font-family:"Roboto";
     border-color:#396664
 }
-input{
-      background-color:#396664;
-      color:#e7f0f0;
-      font-family:"Roboto";
-      border-color:#396664
-}
-#filedrop {
-    border: 3px;
-    border-style: dotted;
-    border-color:#396664;
-    width: 200px;
-    height: 100px;
-}
-#Popover{
-    color:#396664;
-    anchorOrigin:{
-        vertical: 'top';
-        horizontal: 'center';
-      }
-      transformOrigin:{
-        vertical: 'bottom';
-        horizontal: 'center';
-      }
-}
+
