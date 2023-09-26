@@ -24,7 +24,10 @@ var currtype;
 var batchidentifier="";
 var currinput;
 var bcounter=0;
+var currbid=0;
 var chqueue=[];
+var undolist=[];
+var redolist=[];
 var text="";
 var rbid;
 var editbutton;
@@ -34,6 +37,7 @@ var popover;
 var oritext="";
 var a=0;
 var b=0;
+var oldtext="";
 const arrstyle = {height: "17px",marginTop: 'auto'};
 const box1st= {width:window.innerWidth,height:2,backgroundColor:"#2e5250"}
 const colors=["#776d6a","#81436c","#448182","#7d6c42","#f26b6b","#f26baf","#bc6bf2","#6460d6","#ea0b60","#191918","#43774c"];
@@ -42,21 +46,37 @@ const toelbuttons=[];
 var docnodelist={};
 var docshnodelist=[];
 var docnamelist=[];
+var toellist=[];
+var qtnlist=[];
+var qtnshlist=[];
+
+var lastend=-1;
+var currbutton;
 function App() {
     //console.warn = () => {};
     const [anchorEl, setAnchorEl] = React.useState(null);
     const status=Boolean(anchorEl);
+
+  /**
+  *Hauptfunktion,startet mit Login
+  */
   function logintest(){
       var ressession;
       var user;
       var i=0;
       var websocket = new WebSocket("ws://textannotator.texttechnologylab.org/uima");
+      /**
+      *Schickt gegebenen View an die Websocket
+      */
       function sendview(viewts){
               websocket.send(JSON.stringify({cmd:"open_view",data:{casId:docid,view:viewts}}));
               console.log("Message sent:"+JSON.stringify({cmd:"open_view",data:{casId:docid,view:viewts}}));
               msg_sent="view";
               currview=viewts;
       }
+      /**
+      *Schickt gegebenen Dateipfad an Websocket,nimmt auch Tiefe des Pfades um Baumstruktur korrekt zu formatieren(Urspungsknoten Tiefe=0,nächste =1 usw.)
+      */
       function sendrepo(repobt,depth){
             console.log(repobt.innerHTML)
             var repoid=repobt.id;
@@ -111,6 +131,9 @@ function App() {
                 console.log(docnodelist)
             });
       }
+      /**
+      *Schickt in Array chqueue enthaltene Veränderungen an die Websocket
+       */
       function sendchanges(){
             console.log(websocket);
             websocket.send(JSON.stringify({cmd:"work_batch",data:{casId:docid,toolName:"Quick",view:currview,perspective:"default",queue:chqueue,options: [{privateSession: false}]}}));
@@ -118,14 +141,47 @@ function App() {
             chqueue=[];
             msg_sent="changes";
       }
+      /**
+      *Lädt Text und Textknöpfe neu,um Veränderungen anzuzeigen
+       */
+      function loadtext(){
+        document.getElementById("Text").innerHTML="";
+        lastend=-1;
+        qtnshlist=[];
+        for(var bg in qtnlist){
+          const qtnbutton = document.createElement("button");
+          qtnbutton.innerText=text.substring(qtnlist[bg][0],qtnlist[bg][1]);
+          qtnbutton.id=qtnlist[bg][2];
+          qtnbutton.hiddenbuttons=[];
+          qtnbutton.bid=qtnlist[bg][2];
+          qtnbutton.startidx=qtnlist[bg][0];
+          qtnbutton.endidx=qtnlist[bg][1];
+          qtnbutton.addEventListener('click', () => {newannotate(qtnbutton)});
+          qtnbutton.addEventListener('contextmenu',(e) => {editmenu(e,qtnbutton)});
+          currbutton=qtnbutton;
+          qtnshlist.push(""+qtnlist[bg][2]);
+          qtnbutton.tlbid=toplvlbuttons.length;
+          toplvlbuttons.push(qtnbutton);
+          btndict[[qtnlist[bg][0],qtnlist[bg][1]]]=qtnbutton;
+          if(qtnlist[bg][0]>=lastend){
+               document.getElementById("Text").appendChild(qtnbutton);
+               lastend=qtnlist[bg][1];
+          }
+          else{
+               currbutton.hiddenbuttons.push(qtnbutton);
+               qtnlist.splice(bg,1);
+               qtnshlist.splice(bg,1);
+               toplvlbuttons.splice(bg,1);
+          }
+        }
+        console.log(qtnshlist);
+      }
+      /**
+      *Wählt aus,welches Tool Element zum Annotieren,Anzeigen... verwendet wird
+      */
       function seltoel(toel2,toccol,data){
-            console.log(toelbuttons.indexOf(toccol));
-            console.log(toccol.innerHTML);
-            console.log(toel2);
             currtype=toel2;
             currmarkcolor=colors[toccol.id%colors.length];
-            console.log(currmarkcolor);
-            console.log(data.data.toolElements[toel2]);
             for(var te in data.data.toolElements[toel2]){
                 var selbutton=btndict[[data.data.toolElements[toel2][te].features.begin,data.data.toolElements[toel2][te].features.end]];
                 //console.log(selbutton);
@@ -135,12 +191,26 @@ function App() {
                 }
             }
       }
+      /**
+      *Fügt eine neue Annotation zu der Veränderungsschlange hinzu.Braucht den Knopf,der die Quick-Tree.Node repräsentieret,die annotiert werden soll
+      */
       function newannotate(button){
-            button.style.backgroundColor=currmarkcolor;
             chqueue=[];
             chqueue.push({cmd:"create",data:{bid:"_b1_",_type:currtype,features:{begin:button.startidx,end:button.endidx}}});
+            currbid=button.id;
             sendchanges();
       }
+      /**
+      *Zeigt eine neue Annotation an,indem der fragliche Button seine Frabe verändert.
+      */
+      function showanno(button){
+            if(button!=undefined){
+                button.style.backgroundColor=currmarkcolor;
+            }
+      }
+      /**
+      *Erstellt ein Div-Element mit Button-Kind mit gegebenenm Namen,und optional Buttonfarbe und Margin
+      */
       function createDiv(name,bucolor="#396664",bmargin=0.172){
         var divel=document.createElement("div");
         rbid=name+bcounter;
@@ -148,22 +218,18 @@ function App() {
         bcounter++;
         return divel;
       }
-      function split(event,button,input){
+      /**
+      *Wird ausgelöst,sobald in einem Buttonfeld eine Taste gedrückt wird.Wird fürs Zusammenfügen und Auseinanderbrechen von QTNs benutzt
+      */
+      function bkey(event,button,input){
         console.log(event.key)
 
         if(event.key=="Control"){
-            chqueue.push({cmd:"create",data:{bid:"_b1_",_type:"org.texttechnologylab.annotation.type.QuickTreeNode",features:{begin:button.startidx,end:button.startidx+input.selectionStart,parent:button.id}}});
-            chqueue.push({cmd:"create",data:{bid:"_b2_",_type:"org.texttechnologylab.annotation.type.QuickTreeNode",features:{begin:button.startidx+input.selectionStart,end:button.endidx,parent:button.id}}});
-            console.log(input.selectionStart);
-            var val=input.value;
-            input.value=val.substring(0,input.selectionStart);
-            const qtnsubbutton = document.createElement("button");
-            qtnsubbutton.innerText=val.substring(input.selectionStart);
-            qtnsubbutton.addEventListener('click', () => {newannotate(qtnsubbutton)});
-            qtnsubbutton.addEventListener('contextmenu',(e) => {editmenu(e,qtnsubbutton)});
-            button.appendChild(qtnsubbutton);
-            button.hiddenbuttons.push(qtnsubbutton);
+            chqueue.push({cmd:"create",data:{bid:"_b2_",_type:"org.texttechnologylab.annotation.type.QuickTreeNode",features:{begin:button.startidx,end:button.startidx+input.selectionStart,parent:button.id}}});
+            chqueue.push({cmd:"create",data:{bid:"_b3_",_type:"org.texttechnologylab.annotation.type.QuickTreeNode",features:{begin:button.startidx+input.selectionStart,end:button.endidx,parent:button.id}}});
 
+            sendchanges();
+            console.log(input.selectionStart);
         }
         if(event.key=="ArrowRight"){
             if(b%2==0){
@@ -178,6 +244,9 @@ function App() {
             b++;
         }
       }
+      /**
+      *Nimmt eine Id und sendet den Befehl zum Öffnen des entsprechenden Dokumentes an die Websocket
+      */
       function seldoc(idb){
          docid=idb.id;
          console.log(docid);
@@ -187,25 +256,19 @@ function App() {
          console.log("Message sent:"+JSON.stringify({cmd:"open_cas",data:{casId:docid}}));
          msg_sent="cas";
       }
+      /**
+      *Öffnet das Edit-Menü eines Knopfes bzw. sendet die Änderungen am letzten Knopfes an die Websocket
+      */
       function editmenu(event,button){
             event.preventDefault();
+            console.log(button.hiddenbuttons)
             if(button!=editbutton){
-                if(currinput!=undefined){
+                if(currinput!=undefined&&editbutton!=undefined){
                     //Änderungen zum alten(letzten editierten) Button speichern
-                    editbutton.innerText=currinput.value;
+                    editbutton.innerHTML=currinput.value;
                     var a=0;
                     if(editbutton!=undefined){
-                        for(var hdb in editbutton.hiddenbuttons){
-                            if(a%2==0){
-                                console.log(editbutton.hiddenbuttons[hdb]);
-                                const qtnsubbutton = document.createElement("button");
-                                qtnsubbutton.innerText=editbutton.hiddenbuttons[hdb].innerText;
-                                qtnsubbutton.addEventListener('click', () => {newannotate(qtnsubbutton)});
-                                qtnsubbutton.addEventListener('contextmenu',(e) => {editmenu(e,qtnsubbutton)});
-                                button.appendChild(qtnsubbutton);
-                            }
-                            a++;
-                        }
+                        console.log(editbutton.innerText)
                         batchidentifier="_b"+chqueue.length+"_"
                         chqueue.push({cmd:"create",data:{bid:batchidentifier,_type:"org.texttechnologylab.annotation.token.Correction",features:{begin:button.startidx,end:button.endidx,value:editbutton.innerText}}});
                         sendchanges();
@@ -214,12 +277,13 @@ function App() {
                 //neuen Button zum Editieren freigeben
                 if(button!=undefined){
                     var bit=button.innerText;
+                    console.log(bit)
                     button.innerText="";
                     editbutton=button;
                     setAnchorEl(button);
                     currinput=document.createElement("input");
                     currinput.value=bit;
-                    currinput.addEventListener("keyup",(event)=>split(event,button,currinput));
+                    currinput.addEventListener("keyup",(event)=>bkey(event,button,currinput));
                     button.appendChild(currinput);
                 }
 
@@ -229,6 +293,9 @@ function App() {
             }
             console.log("edit");
       }
+      /**
+      *Löscht zwei Knöpfe und erstellt einen neuen der die beiden alten kombiniert
+      */
       function merge(button,inText,targetoffset){
                 console.log("merge"+button.tlbid)
                 var secbutton=toplvlbuttons[button.tlbid+targetoffset];
@@ -240,35 +307,6 @@ function App() {
                 batchidentifier="_b"+chqueue.length+"_";
                 chqueue.push({cmd:"create",data:{bid:batchidentifier,_type:"de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Sentence",features:{begin:Math.min(button.startidx,secbutton.startidx),end:Math.max(button.endidx,secbutton.endidx)}}});
                 sendchanges();
-                if(targetoffset<0){
-                    var b2=document.createElement("button");
-                    console.log(button.tlbid);
-                    b2.innerText=toplvlbuttons[button.tlbid+targetoffset].innerText;
-                    b2.addEventListener('click', () => {newannotate(b2)});
-                    b2.addEventListener('contextmenu',(e) => {editmenu(e,b2)});
-                    button.appendChild(b2);
-                    button.hiddenbuttons.push(b2);
-                    toplvlbuttons[button.tlbid+targetoffset].remove();
-                    toplvlbuttons.splice(button.tlbid+targetoffset,1);
-                }
-                var str1=inText;
-                button.innerText="";
-                var b1=document.createElement("button");
-                b1.innerText=str1;
-                b1.addEventListener('click', () => {newannotate(b1)});
-                b1.addEventListener('contextmenu',(e) => {editmenu(e,b1)});
-                button.appendChild(b1);
-                if(targetoffset>0){
-                    var b2=document.createElement("button");
-                    console.log(button.tlbid);
-                    b2.innerText=toplvlbuttons[button.tlbid+targetoffset].innerText;
-                    b2.addEventListener('click', () => {newannotate(b2)});
-                    b2.addEventListener('contextmenu',(e) => {editmenu(e,b2)});
-                    button.appendChild(b2);
-                    button.hiddenbuttons.push(b2);
-                    toplvlbuttons[button.tlbid+targetoffset].remove();
-                    toplvlbuttons.splice(button.tlbid+targetoffset,1);
-                }
                 //console.log(toplvlbuttons);
         }
       websocket.onopen = function () {
@@ -355,49 +393,93 @@ function App() {
                 document.getElementById("ovtext").innerHTML="Select Tool Element";
                 document.getElementById("untext").innerHTML="";
                 //Text
-                var qtnlist=[];
                 for(var te2 in data.data.toolElements["org.texttechnologylab.annotation.type.QuickTreeNode"]){
-                    qtnlist.push([data.data.toolElements["org.texttechnologylab.annotation.type.QuickTreeNode"][te2].features.begin,data.data.toolElements["org.texttechnologylab.annotation.type.QuickTreeNode"][te2].features.end,data.data.toolElements["org.texttechnologylab.annotation.type.QuickTreeNode"][te2]._addr]);
+                    if(te2!=undefined){
+                        qtnlist.push([data.data.toolElements["org.texttechnologylab.annotation.type.QuickTreeNode"][te2].features.begin,data.data.toolElements["org.texttechnologylab.annotation.type.QuickTreeNode"][te2].features.end,data.data.toolElements["org.texttechnologylab.annotation.type.QuickTreeNode"][te2]._addr]);
+                        }
                 }
                 qtnlist.sort(function([a,b,c], [a1,b1,c1]) {return a - a1;});
-                var lastend=-1;
-                var currbutton;
                 a=0;
                 document.getElementById("txt").innerText="Text";
-                for(var bg in qtnlist){
-                  const qtnbutton = document.createElement("button");
-                  qtnbutton.innerText=text.substring(qtnlist[bg][0],qtnlist[bg][1]);
-                  qtnbutton.id=qtnlist[bg][2];
-                  qtnbutton.bid=qtnlist[bg][2];
-                  qtnbutton.startidx=qtnlist[bg][0];
-                  qtnbutton.endidx=qtnlist[bg][1];
-                  qtnbutton.hiddenbuttons=[];
-                  qtnbutton.addEventListener('click', () => {newannotate(qtnbutton)});
-                  qtnbutton.addEventListener('contextmenu',(e) => {editmenu(e,qtnbutton)});
-                  currbutton=qtnbutton;
-                  qtnbutton.tlbid=toplvlbuttons.length;
-                  btndict[[qtnlist[bg][0],qtnlist[bg][1]]]=qtnbutton;
-                  if(qtnlist[bg][0]>lastend){
-                       document.getElementById("Text").appendChild(qtnbutton);
-                       lastend=qtnlist[bg][1];
-                       toplvlbuttons.push(qtnbutton);
-                  }
-                  else{
-                       currbutton.hiddenbuttons.push(qtnbutton);
-                  }
-                }
+                loadtext();
                 //Tool Element Liste
                 bcounter=0;
                 console.log(colors.length+"/49")
                 for(var toel in data.data.toolElements){
-                    divel=createDiv("",colors[count%colors.length]);
-                    document.getElementById("untext").appendChild(divel);
-                    toelbuttons.push(document.getElementById(rbid));
-                    toelbuttons[toelbuttons.length-1].innerText=toel.split(".")[toel.split(".").length-1]+" ("+Object.keys(data.data.toolElements[toel]).length+")";
-                    toelbuttons[toelbuttons.length-1].buttoel=toel;
-                    toelbuttons[toelbuttons.length-1].addEventListener('click', (event) => {seltoel(event.target.buttoel,event.target,data)});
-                    count+=1;
-
+                    //if(toel.split(".")[toel.split(".").length-1].indexOf('_')<0){
+                        divel=createDiv("",colors[count%colors.length]);
+                        document.getElementById("untext").appendChild(divel);
+                        toelbuttons.push(document.getElementById(rbid));
+                        toelbuttons[toelbuttons.length-1].innerText=toel.split(".")[toel.split(".").length-1]+" ("+Object.keys(data.data.toolElements[toel]).length+")";
+                        toelbuttons[toelbuttons.length-1].buttoel=toel;
+                        toellist.push(toel);
+                        toelbuttons[toelbuttons.length-1].addEventListener('click', (event) => {seltoel(event.target.buttoel,event.target,data)});
+                        count+=1;
+                    //}
+                }
+            }
+            else if(msg_sent=="changes"){
+                const data=JSON.parse(messageEvent.data);
+                var newload=false;
+                for(var update in data.data.updates){
+                    console.log(update)
+                    //SPLIT
+                    if(update=="org.texttechnologylab.annotation.type.QuickTreeNode"){
+                        var splitresult=[];
+                        for(var id in data.data.updates[update]){
+                            //parent löschen
+                            if(data.data.updates[update][id].features!=undefined){
+                                if(qtnshlist.indexOf(""+data.data.updates[update][id].features.parent)!=-1){
+                                    qtnlist.splice(qtnshlist.indexOf(""+data.data.updates[update][id].features.parent),1);
+                                    qtnshlist.splice(qtnshlist.indexOf(""+data.data.updates[update][id].features.parent),1);
+                                    console.log(qtnshlist);
+                                    newload=true;
+                                }
+                            //neuen text hinzufügen
+                                console.log([data.data.updates[update][id].features.begin,data.data.updates[update][id].features.end,data.data.updates[update][id]._addr]);
+                                qtnlist.push([data.data.updates[update][id].features.begin,data.data.updates[update][id].features.end,data.data.updates[update][id]._addr]);
+                                qtnshlist.push(""+data.data.updates[update][id]._addr);
+                                splitresult.push(data.data.updates[update][id]._addr);
+                                console.log(qtnshlist);
+                                newload=true;
+                            }
+                            else{
+                                //gelöschte Buttons entfernen
+                                qtnlist.splice(qtnshlist.indexOf(""+id),1);
+                                qtnshlist.splice(qtnshlist.indexOf(""+id),1);
+                                console.log(qtnshlist);
+                                newload=true;
+                            }
+                            undolist.push(["split",splitresult]);
+                        }
+                    }
+                    //MERGE
+                    else if(update=="de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Sentence"){
+                        console.log(qtnshlist);
+                        for(var id in data.data.updates[update]){
+                            qtnlist.push([data.data.updates[update][id].features.begin,data.data.updates[update][id].features.end,data.data.updates[update][id]._addr]);
+                            qtnshlist.push(""+data.data.updates[update][id]._addr);
+                            console.log(qtnshlist);
+                        }
+                        undolist.push(["merge",data.data.updates[update][id]._addr]);
+                        newload=true;
+                    }
+                    //KORREKTUR
+                    else if(update=="org.texttechnologylab.annotation.token.Correction"){
+                        /*for(var id in data.data.updates[update]){
+                            console.log(""+data.data.updates[update][id]._addr);
+                            btndict[[data.data.updates[update][id].features.begin,data.data.updates[update][id].features.end]].innerHTML=data.data.updates[update][id].features.value;
+                        }*/
+                    }
+                    //NEUE ANNOTATION
+                    else if(toellist.includes(update)){
+                        showanno(document.getElementById(currbid));
+                    }
+                }
+                //wenn Text sich verändert hat,Text neuladen
+                if(newload==true){
+                    qtnlist.sort(function([a,b,c], [a1,b1,c1]) {return a - a1;});
+                    loadtext();
                 }
             }
       }
