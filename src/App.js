@@ -58,7 +58,7 @@ function App() {
     const status=Boolean(anchorEl);
 
   /**
-  *Hauptfunktion,startet mit Login
+  *Main function,starts when login button is pressed
   */
   function logintest(){
       var ressession;
@@ -66,7 +66,7 @@ function App() {
       var i=0;
       var websocket = new WebSocket("ws://textannotator.texttechnologylab.org/uima");
       /**
-      *Schickt gegebenen View an die Websocket
+      *Sends given view to the websocket
       */
       function sendview(viewts){
               websocket.send(JSON.stringify({cmd:"open_view",data:{casId:docid,view:viewts}}));
@@ -75,7 +75,7 @@ function App() {
               currview=viewts;
       }
       /**
-      *Schickt gegebenen Dateipfad an Websocket,nimmt auch Tiefe des Pfades um Baumstruktur korrekt zu formatieren(Urspungsknoten Tiefe=0,nächste =1 usw.)
+      *Sends given file path to websocket,also takes depth of path to format tree structure correctly(origin node depth=0,next =1 etc.)
       */
       function sendrepo(repobt,depth){
             console.log(repobt.innerHTML)
@@ -132,7 +132,7 @@ function App() {
             });
       }
       /**
-      *Schickt in Array chqueue enthaltene Veränderungen an die Websocket
+      *Sends changes contained in array chqueue to the websocket
        */
       function sendchanges(){
             console.log(websocket);
@@ -142,7 +142,7 @@ function App() {
             msg_sent="changes";
       }
       /**
-      *Lädt Text und Textknöpfe neu,um Veränderungen anzuzeigen
+      *Reloads text and text buttons to show changes
        */
       function loadtext(){
         document.getElementById("Text").innerHTML="";
@@ -177,7 +177,7 @@ function App() {
         console.log(qtnshlist);
       }
       /**
-      *Wählt aus,welches Tool Element zum Annotieren,Anzeigen... verwendet wird
+      *Selects which tool element to mark in the text. This tool element is also used to create new annotations
       */
       function seltoel(toel2,toccol,data){
             currtype=toel2;
@@ -192,7 +192,7 @@ function App() {
             }
       }
       /**
-      *Fügt eine neue Annotation zu der Veränderungsschlange hinzu.Braucht den Knopf,der die Quick-Tree.Node repräsentieret,die annotiert werden soll
+      *Adds a new annotation to the change queue. Takes the button representing the quick tree node that is annotated
       */
       function newannotate(button){
             chqueue=[];
@@ -201,7 +201,7 @@ function App() {
             sendchanges();
       }
       /**
-      *Zeigt eine neue Annotation an,indem der fragliche Button seine Frabe verändert.
+      *Displays a new annotation by changing the color of the button in question.
       */
       function showanno(button){
             if(button!=undefined){
@@ -209,7 +209,7 @@ function App() {
             }
       }
       /**
-      *Erstellt ein Div-Element mit Button-Kind mit gegebenenm Namen,und optional Buttonfarbe und Margin
+      *Creates a div element with button child with given name,with option to set button color and margin
       */
       function createDiv(name,bucolor="#396664",bmargin=0.172){
         var divel=document.createElement("div");
@@ -219,7 +219,7 @@ function App() {
         return divel;
       }
       /**
-      *Wird ausgelöst,sobald in einem Buttonfeld eine Taste gedrückt wird.Wird fürs Zusammenfügen und Auseinanderbrechen von QTNs benutzt
+      *Triggered when a button is pressed in a button field, used for merging and splitting QTNs.
       */
       function bkey(event,button,input){
         console.log(event.key)
@@ -245,7 +245,7 @@ function App() {
         }
       }
       /**
-      *Nimmt eine Id und sendet den Befehl zum Öffnen des entsprechenden Dokumentes an die Websocket
+      *Takes a numerical id and send a command to open the corresponding document to the websocket
       */
       function seldoc(idb){
          docid=idb.id;
@@ -257,7 +257,7 @@ function App() {
          msg_sent="cas";
       }
       /**
-      *Öffnet das Edit-Menü eines Knopfes bzw. sendet die Änderungen am letzten Knopfes an die Websocket
+      *Opens the edit menu of a button and sends the changes on the last edited button to the websocket
       */
       function editmenu(event,button){
             event.preventDefault();
@@ -294,7 +294,7 @@ function App() {
             console.log("edit");
       }
       /**
-      *Löscht zwei Knöpfe und erstellt einen neuen der die beiden alten kombiniert
+      *Deletes two buttons and creates a new one that combines the two
       */
       function merge(button,inText,targetoffset){
                 console.log("merge"+button.tlbid)
