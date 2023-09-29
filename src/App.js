@@ -20,7 +20,7 @@ var websocket = new WebSocket("ws://textannotator.texttechnologylab.org/uima");
 var msg_sent;
 var currview;
 var currmarkcolor="#396664";
-var currtype;
+var currtype="";
 var batchidentifier="";
 var currinput;
 var bcounter=0;
@@ -147,7 +147,7 @@ function App() {
           qtnbutton.bid=qtnlist[bg][2];
           qtnbutton.startidx=qtnlist[bg][0];
           qtnbutton.endidx=qtnlist[bg][1];
-          qtnbutton.addEventListener('click', () => {newannotate(qtnbutton)});
+          qtnbutton.addEventListener('click', (e) => {newannotate(e,qtnbutton)});
           qtnbutton.addEventListener('contextmenu',(e) => {editmenu(e,qtnbutton)});
           currbutton=qtnbutton;
           qtnshlist.push(""+qtnlist[bg][2]);
@@ -182,12 +182,17 @@ function App() {
       /**
       *Adds a new annotation to the change queue. Takes the button representing the quick tree node that is annotated
       */
-      function newannotate(button){
-            if(button!=editbutton){
-                chqueue=[];
-                chqueue.push({cmd:"create",data:{bid:"_b1_",_type:currtype,features:{begin:button.startidx,end:button.endidx}}});
-                currbid=button.id;
-                sendchanges();
+      function newannotate(event,button){
+            if(currtype!=""){
+                if(button!=editbutton){
+                    chqueue=[];
+                    chqueue.push({cmd:"create",data:{bid:"_b1_",_type:currtype,features:{begin:button.startidx,end:button.endidx}}});
+                    currbid=button.id;
+                    sendchanges();
+                }
+            }
+            else{
+                editmenu(event,button);
             }
       }
       /**
@@ -255,8 +260,7 @@ function App() {
             event.preventDefault();
             if(button!=editbutton){
                 if(currinput!=undefined&&editbutton!=undefined){
-                    //Änderungen zum alten(letzten editierten) Button speichern
-                    //editbutton.innerHTML=currinput.value;
+                    //Save changes to the button that was edited last
                     console.log("old")
                     var a=0;
                     if(editbutton!=undefined){
