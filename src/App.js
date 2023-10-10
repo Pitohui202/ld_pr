@@ -26,8 +26,6 @@ var currinput;
 var bcounter=0;
 var currbid=0;
 var chqueue=[];
-var undolist=[];
-var redolist=[];
 var text="";
 var rbid;
 var editbutton;
@@ -409,20 +407,16 @@ function App() {
                 for(var update in data.data.updates){
                     //SPLIT
                     if(update=="org.texttechnologylab.annotation.type.QuickTreeNode"){
-                        var splitresult=[];
                         for(var id in data.data.updates[update]){
                             //delete parent
                             if(data.data.updates[update][id].features!=undefined){
                                 if(qtnshlist.indexOf(""+data.data.updates[update][id].features.parent)!=-1){
                                     qtnlist.splice(qtnshlist.indexOf(""+data.data.updates[update][id].features.parent),1);
                                     qtnshlist.splice(qtnshlist.indexOf(""+data.data.updates[update][id].features.parent),1);
-                                    newload=true;
                                 }
                             //add new text
-                                console.log([data.data.updates[update][id].features.begin,data.data.updates[update][id].features.end,data.data.updates[update][id]._addr]);
                                 qtnlist.push([data.data.updates[update][id].features.begin,data.data.updates[update][id].features.end,data.data.updates[update][id]._addr]);
                                 qtnshlist.push(""+data.data.updates[update][id]._addr);
-                                splitresult.push(data.data.updates[update][id]._addr);
                                 newload=true;
                             }
                             else{
@@ -431,7 +425,6 @@ function App() {
                                 qtnshlist.splice(qtnshlist.indexOf(""+id),1);
                                 newload=true;
                             }
-                            undolist.push(["split",splitresult]);
                         }
                     }
                     //MERGE
@@ -441,7 +434,6 @@ function App() {
                             qtnshlist.push(""+data.data.updates[update][id]._addr);
                             console.log(qtnshlist);
                         }
-                        undolist.push(["merge",data.data.updates[update][id]._addr]);
                         newload=true;
                     }
                     //CORRECTIONS
